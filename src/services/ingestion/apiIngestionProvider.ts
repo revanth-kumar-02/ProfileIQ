@@ -18,7 +18,7 @@ export class ApiIngestionProvider implements ProfileIngestionProvider {
       return {
         success: false,
         error: {
-          code: 'EMPTY_URL',
+          code: 'INVALID_PROFILE_URL',
           message: 'Please enter a valid LinkedIn profile URL.',
         },
       };
@@ -44,17 +44,19 @@ export class ApiIngestionProvider implements ProfileIngestionProvider {
         return {
           success: false,
           error: {
-            code: resData.error?.code || 'PROFILE_EXTRACTION_FAILED',
+            code: resData.error?.code || 'PROFILE_DATA_NOT_AVAILABLE',
             message:
               resData.error?.message ||
-              "We couldn't extract information from this LinkedIn profile. Please verify the URL points to a public profile.",
+              "We couldn't extract public profile information from this LinkedIn URL.",
           },
+          diagnostics: resData.diagnostics,
         };
       }
 
       return {
         success: true,
         profile: resData.data.profile,
+        diagnostics: resData.diagnostics,
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

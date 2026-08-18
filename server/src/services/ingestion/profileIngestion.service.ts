@@ -1,6 +1,7 @@
-import { LinkedInExtractionProvider, ExtractionResult } from './linkedinExtractionProvider.service.js';
+import { LinkedInExtractionProvider } from './linkedinExtractionProvider.service.js';
 import { normalizeRawExtractedProfile } from '../profile/profileNormalizer.service.js';
 import { Profile } from '../../types/profile.types.js';
+import { ProfileExtractionProvider, ExtractionResult, ExtractionDiagnostics } from './types.js';
 
 export interface ProfileImportResponse {
   success: boolean;
@@ -11,13 +12,25 @@ export interface ProfileImportResponse {
     code: string;
     message: string;
   };
+  diagnostics?: ExtractionDiagnostics;
 }
 
 export class ProfileIngestionService {
-  private extractionProvider: LinkedInExtractionProvider;
+  private extractionProvider: ProfileExtractionProvider;
 
-  constructor() {
-    this.extractionProvider = new LinkedInExtractionProvider();
+  constructor(provider?: ProfileExtractionProvider) {
+    this.extractionProvider = provider || new LinkedInExtractionProvider();
+  }
+
+  /**
+   * Set or replace extraction provider
+   */
+  setProvider(provider: ProfileExtractionProvider): void {
+    this.extractionProvider = provider;
+  }
+
+  getProviderName(): string {
+    return this.extractionProvider.name;
   }
 
   async importProfileFromUrl(profileUrl: string, candidateNameHint?: string): Promise<ProfileImportResponse> {
@@ -27,9 +40,10 @@ export class ProfileIngestionService {
       return {
         success: false,
         error: result.error || {
-          code: 'PROFILE_EXTRACTION_FAILED',
-          message: "We couldn't extract information from this LinkedIn profile.",
+          code: 'PROFILE_DATA_NOT_AVAILABLE',
+          message: "We couldn't extract public profile information from this LinkedIn URL.",
         },
+        diagnostics: result.diagnostics,
       };
     }
 
@@ -46,6 +60,7 @@ export class ProfileIngestionService {
       data: {
         profile: normalizedProfile,
       },
+      diagnostics: result.diagnostics,
     };
   }
 }

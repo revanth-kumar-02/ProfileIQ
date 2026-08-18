@@ -1,0 +1,30 @@
+{
+  "rawUrl": "https://www.linkedin.com/in/test-candidate-fixture",
+  "name": "Test Fixture Candidate",
+  "headline": "Senior Software Architect & Systems Engineer",
+  "about": "Automated test fixture candidate profile for integration and unit testing.",
+  "locationName": "Seattle, WA",
+  "workHistory": [
+    {
+      "companyName": "Tech Corp",
+      "jobTitle": "Lead Architect",
+      "dates": "2022 - Present",
+      "descriptionText": "Designed scalable distributed microservices."
+    }
+  ],
+  "educationHistory": [
+    {
+      "schoolName": "University of Washington",
+      "degreeName": "B.S. Computer Science",
+      "dates": "2018 - 2022"
+    }
+  ],
+  "extractedSkills": ["Distributed Systems", "TypeScript", "Node.js", "Docker", "Kubernetes"],
+  "portfolioProjects": [
+    {
+      "title": "Cloud Pipeline Engine",
+      "summary": "High-throughput data streaming platform.",
+      "tags": ["Go", "Kafka", "Docker"]
+    }
+  ]
+}

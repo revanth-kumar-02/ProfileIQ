@@ -1,53 +1,23 @@
 import { getGroqClient, getGroqModel } from '../../config/groq.js';
-
-export interface RawExtractedProfile {
-  rawUrl: string;
-  name?: string;
-  headline?: string;
-  about?: string;
-  locationName?: string;
-  photoUrl?: string;
-  workHistory?: {
-    companyName?: string;
-    jobTitle?: string;
-    dates?: string;
-    descriptionText?: string;
-  }[];
-  educationHistory?: {
-    schoolName?: string;
-    degreeName?: string;
-    dates?: string;
-  }[];
-  extractedSkills?: string[];
-  portfolioProjects?: {
-    title?: string;
-    summary?: string;
-    tags?: string[];
-  }[];
-  certifications?: {
-    name?: string;
-    issuer?: string;
-  }[];
-}
-
-export interface ExtractionResult {
-  success: boolean;
-  data?: RawExtractedProfile;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
-
-export interface ProfileExtractionProvider {
-  extractProfile(profileUrl: string): Promise<ExtractionResult>;
-}
+import {
+  ProfileExtractionProvider,
+  ExtractionResult,
+  RawExtractedProfile,
+  ExtractionDiagnostics,
+  PageTypeClassification,
+  ExtractionErrorCode,
+} from './types.js';
 
 export class LinkedInExtractionProvider implements ProfileExtractionProvider {
+  name = 'LinkedIn Direct Fetch Provider (Development)';
+
   async extractProfile(profileUrl: string): Promise<ExtractionResult> {
     const rawUrl = (profileUrl || '').trim();
 
+    console.log(`\n[Profile Import] Requested URL: "${rawUrl}"`);
+
     if (!rawUrl) {
+      console.log('[Validation] URL valid: false (Empty)');
       return {
         success: false,
         error: {
@@ -57,10 +27,12 @@ export class LinkedInExtractionProvider implements ProfileExtractionProvider {
       };
     }
 
-    // Validate LinkedIn URL syntax
+    // Validate syntax
     const isValidFormat =
       /^(https?:\/\/)?(www\.)?linkedin\.com\/in\/[\w-]+\/?$/i.test(rawUrl) ||
       /^linkedin\.com\/in\/[\w-]+\/?$/i.test(rawUrl);
+
+    console.log(`[Validation] URL valid: ${isValidFormat}`);
 
     if (!isValidFormat) {
       return {
@@ -74,102 +46,215 @@ export class LinkedInExtractionProvider implements ProfileExtractionProvider {
 
     const cleanUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
 
-    console.log(`[Profile Import] URL received: ${cleanUrl}`);
-    console.log('[Extraction] Provider started for LinkedIn URL');
+    console.log(`[Extraction Provider] Provider started: ${this.name}`);
+
+    let responseStatus: number | undefined;
+    let responseContentType = 'unknown';
+    let responseLength = 0;
+    let redirectedUrl = cleanUrl;
+    let fetchedHtml = '';
+    let pageType: PageTypeClassification = 'unknown';
 
     try {
-      // 1. Fetch public profile content / meta headers
-      let fetchedHtml = '';
-      try {
-        const response = await fetch(cleanUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-        });
-        if (response.ok) {
-          fetchedHtml = await response.text();
-        }
-      } catch (err) {
-        console.warn('[Extraction] Public fetch returned error or was restricted:', err instanceof Error ? err.message : String(err));
-      }
+      // Direct HTTP Request to LinkedIn
+      const fetchResponse = await fetch(cleanUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+        },
+        redirect: 'follow',
+      });
 
-      // Extract metadata tags if available
-      const metaTitleMatch = fetchedHtml.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
-                             fetchedHtml.match(/<title>(.*?)<\/title>/i);
-      const metaDescMatch = fetchedHtml.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i) ||
-                            fetchedHtml.match(/<meta\s+name=["']description["']\s+content=["'](.*?)["']/i);
-      const metaImageMatch = fetchedHtml.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i);
+      responseStatus = fetchResponse.status;
+      responseContentType = fetchResponse.headers.get('content-type') || 'unknown';
+      redirectedUrl = fetchResponse.url || cleanUrl;
 
-      const titleContent = metaTitleMatch ? metaTitleMatch[1].replace(/\| LinkedIn.*$/i, '').trim() : '';
-      const descContent = metaDescMatch ? metaDescMatch[1].trim() : '';
-      const imageContent = metaImageMatch ? metaImageMatch[1].trim() : '';
+      fetchedHtml = await fetchResponse.text();
+      responseLength = fetchedHtml.length;
 
-      // Clean HTML body text (up to 3000 chars)
-      const bodyText = fetchedHtml
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .slice(0, 3000)
-        .trim();
+      console.log(`[Extraction Provider] Request status: ${responseStatus}`);
+      console.log(`[Extraction Provider] Response content type: ${responseContentType}`);
+      console.log(`[Extraction Provider] Response length: ${responseLength} bytes`);
+      console.log(`[Extraction Provider] Final URL: ${redirectedUrl}`);
 
-      const combinedText = `
+      // Page Type Classification Logic
+      pageType = this.classifyPageType(responseStatus, redirectedUrl, fetchedHtml);
+      console.log(`[Extraction Provider] Detected page type: ${pageType}`);
+    } catch (networkErr: unknown) {
+      const errMsg = networkErr instanceof Error ? networkErr.message : String(networkErr);
+      console.error(`[Extraction Provider] Network fetch failed: ${errMsg}`);
+
+      const diagnostics: ExtractionDiagnostics = {
+        provider: this.name,
+        httpStatus: responseStatus,
+        pageType: 'unknown',
+        redirectedUrl: cleanUrl,
+        responseContentType: 'none',
+        responseLength: 0,
+        profileSignalsDetected: {
+          name: false,
+          headline: false,
+          about: false,
+          skillsCount: 0,
+          experienceCount: 0,
+          educationCount: 0,
+        },
+      };
+
+      return {
+        success: false,
+        error: {
+          code: 'NETWORK_ERROR',
+          message: 'Unable to connect to the LinkedIn profile URL. Please check your internet connection.',
+        },
+        diagnostics,
+      };
+    }
+
+    // Diagnostics template
+    const diagnostics: ExtractionDiagnostics = {
+      provider: this.name,
+      httpStatus: responseStatus,
+      pageType,
+      redirectedUrl,
+      responseContentType,
+      responseLength,
+      profileSignalsDetected: {
+        name: false,
+        headline: false,
+        about: false,
+        skillsCount: 0,
+        experienceCount: 0,
+        educationCount: 0,
+      },
+    };
+
+    // Handle classified page non-profile states
+    if (pageType === 'blocked') {
+      return {
+        success: false,
+        error: {
+          code: 'PROFILE_ACCESS_BLOCKED',
+          message:
+            'LinkedIn blocked this automated extraction request (HTTP 999 / Security Wall). Direct server-side HTTP scraping is restricted by LinkedIn.',
+        },
+        diagnostics,
+      };
+    }
+
+    if (pageType === 'auth_wall' || pageType === 'login') {
+      return {
+        success: false,
+        error: {
+          code: 'PROFILE_LOGIN_REQUIRED',
+          message:
+            'LinkedIn requires user authentication to view this profile. Please make sure the profile public visibility is enabled.',
+        },
+        diagnostics,
+      };
+    }
+
+    if (pageType === 'challenge') {
+      return {
+        success: false,
+        error: {
+          code: 'PROFILE_ACCESS_BLOCKED',
+          message: 'LinkedIn presented a bot security challenge (CAPTCHA). Automated extraction cannot proceed.',
+        },
+        diagnostics,
+      };
+    }
+
+    if (pageType === 'empty') {
+      return {
+        success: false,
+        error: {
+          code: 'PROFILE_DATA_NOT_AVAILABLE',
+          message: 'The requested page returned no usable content.',
+        },
+        diagnostics,
+      };
+    }
+
+    // Extract Meta tags & Text snippet
+    const metaTitleMatch =
+      fetchedHtml.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
+      fetchedHtml.match(/<title>(.*?)<\/title>/i);
+    const metaDescMatch =
+      fetchedHtml.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i) ||
+      fetchedHtml.match(/<meta\s+name=["']description["']\s+content=["'](.*?)["']/i);
+    const metaImageMatch = fetchedHtml.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i);
+
+    const titleContent = metaTitleMatch ? metaTitleMatch[1].replace(/\| LinkedIn.*$/i, '').trim() : '';
+    const descContent = metaDescMatch ? metaDescMatch[1].trim() : '';
+    const imageContent = metaImageMatch ? metaImageMatch[1].trim() : '';
+
+    const bodyText = fetchedHtml
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .slice(0, 3000)
+      .trim();
+
+    const combinedText = `
 URL: ${cleanUrl}
 Title Meta: ${titleContent}
 Description Meta: ${descContent}
 Page Text Snippet: ${bodyText}
-      `.trim();
+    `.trim();
 
-      // 2. Extract profile data via Groq LLM parser
+    // Parse via Groq LLM
+    try {
       const groq = getGroqClient();
       const model = getGroqModel();
 
       const prompt = `
-Extract public profile information for candidate from this LinkedIn profile web data.
+Extract public candidate profile facts from this LinkedIn web page snippet.
 
-Profile Data:
+Data:
 ${combinedText}
 
-Return a STRICT JSON object matching this exact structure:
+Return a STRICT JSON object matching this structure:
 {
-  "name": "Full name extracted from title/meta or null if not found",
-  "headline": "Extracted professional headline or null if not found",
-  "about": "Extracted summary/about section text or null if not found",
-  "locationName": "Extracted location or null if not found",
+  "name": "Extracted candidate name or null",
+  "headline": "Extracted candidate headline or null",
+  "about": "Extracted candidate summary/about or null",
+  "locationName": "Extracted location or null",
   "photoUrl": "${imageContent || ''}" or null,
   "workHistory": [
     {
-      "companyName": "Company name",
-      "jobTitle": "Job title",
-      "dates": "Start - End date",
-      "descriptionText": "Key responsibilities"
+      "companyName": "Company",
+      "jobTitle": "Role",
+      "dates": "Dates",
+      "descriptionText": "Details"
     }
   ],
   "educationHistory": [
     {
-      "schoolName": "University name",
-      "degreeName": "Degree/Field",
+      "schoolName": "School",
+      "degreeName": "Degree",
       "dates": "Dates"
     }
   ],
-  "extractedSkills": ["Skill 1", "Skill 2"],
+  "extractedSkills": ["Skill1"],
   "portfolioProjects": [
     {
-      "title": "Project name",
-      "summary": "Project description",
-      "tags": ["Tech 1"]
+      "title": "Project",
+      "summary": "Summary",
+      "tags": ["Tag"]
     }
   ]
 }
 
-STRICT EXTRACTION RULES:
-1. ONLY extract information that is explicitly stated in the provided text.
-2. DO NOT INVENT or fabricate candidate data under any circumstances.
-3. DO NOT return fake demo names (e.g. "Revanth kumar", "Alex Chen", "Sarah Connor") unless that exact name was found in the text.
-4. DO NOT return default skill arrays (e.g. ["JavaScript", "TypeScript", "React", "Node.js", "Python", "Git", "REST APIs", "SQL"]) unless those exact skills were explicitly found.
-5. If a section or skill is not present, return empty array [] or null.
+STRICT INSTRUCTIONS:
+1. ONLY extract information explicitly present in text.
+2. DO NOT fabricate candidate names, skills, or experience under any circumstances.
+3. If information is not present, return null or empty array [].
 `;
 
       const groqResponse = await groq.chat.completions.create({
@@ -177,7 +262,7 @@ STRICT EXTRACTION RULES:
         messages: [
           {
             role: 'system',
-            content: 'You are an explicit LinkedIn profile data extractor. You strictly extract facts present in web text without hallucination.',
+            content: 'You are an explicit LinkedIn profile fact extractor. Do not fabricate data.',
           },
           {
             role: 'user',
@@ -189,88 +274,140 @@ STRICT EXTRACTION RULES:
       });
 
       const responseText = groqResponse.choices[0]?.message?.content || '{}';
-      const parsedData = JSON.parse(responseText);
+      const parsed = JSON.parse(responseText);
 
-      // Check if candidate name was extracted from titleContent if Groq didn't find one
-      let candidateName = parsedData.name?.trim();
+      let candidateName = parsed.name?.trim();
       if (!candidateName && titleContent) {
-        // e.g. "John Doe - Software Engineer" -> "John Doe"
         candidateName = titleContent.split('-')[0].split('|')[0].trim();
       }
 
-      // If neither name nor headline nor about nor skills were found, the profile is private or unavailable
-      const hasAnyExtractedData = Boolean(
-        candidateName ||
-        parsedData.headline ||
-        parsedData.about ||
-        (parsedData.extractedSkills && parsedData.extractedSkills.length > 0) ||
-        (parsedData.workHistory && parsedData.workHistory.length > 0)
-      );
-
-      if (!hasAnyExtractedData) {
-        console.log('[Extraction] No public data could be extracted from profile URL');
-        return {
-          success: false,
-          error: {
-            code: 'PROFILE_EXTRACTION_FAILED',
-            message: "We couldn't extract public profile information from this LinkedIn URL. Make sure the profile is publicly accessible.",
-          },
-        };
-      }
-
-      const extractedSkills = (parsedData.extractedSkills || [])
+      const extractedSkills = (parsed.extractedSkills || [])
         .map((s: unknown) => (typeof s === 'string' ? s.trim() : ''))
         .filter(Boolean);
 
-      const rawData: RawExtractedProfile = {
-        rawUrl: cleanUrl,
-        name: candidateName || undefined,
-        headline: parsedData.headline?.trim() || undefined,
-        about: parsedData.about?.trim() || undefined,
-        locationName: parsedData.locationName?.trim() || undefined,
-        photoUrl: parsedData.photoUrl?.trim() || imageContent || undefined,
-        workHistory: (parsedData.workHistory || []).map((w: any) => ({
+      const workHistory = (parsed.workHistory || [])
+        .map((w: any) => ({
           companyName: w.companyName?.trim() || undefined,
           jobTitle: w.jobTitle?.trim() || undefined,
           dates: w.dates?.trim() || undefined,
           descriptionText: w.descriptionText?.trim() || undefined,
-        })).filter((w: any) => w.companyName || w.jobTitle),
-        educationHistory: (parsedData.educationHistory || []).map((e: any) => ({
+        }))
+        .filter((w: any) => w.companyName || w.jobTitle);
+
+      const educationHistory = (parsed.educationHistory || [])
+        .map((e: any) => ({
           schoolName: e.schoolName?.trim() || undefined,
           degreeName: e.degreeName?.trim() || undefined,
           dates: e.dates?.trim() || undefined,
-        })).filter((e: any) => e.schoolName),
-        extractedSkills: Array.from(new Set(extractedSkills)),
-        portfolioProjects: (parsedData.portfolioProjects || []).map((p: any) => ({
+        }))
+        .filter((e: any) => e.schoolName);
+
+      const portfolioProjects = (parsed.portfolioProjects || [])
+        .map((p: any) => ({
           title: p.title?.trim() || undefined,
           summary: p.summary?.trim() || undefined,
           tags: (p.tags || []).map((t: any) => String(t).trim()).filter(Boolean),
-        })).filter((p: any) => p.title),
+        }))
+        .filter((p: any) => p.title);
+
+      const profileSignals = {
+        name: Boolean(candidateName),
+        headline: Boolean(parsed.headline),
+        about: Boolean(parsed.about),
+        skillsCount: extractedSkills.length,
+        experienceCount: workHistory.length,
+        educationCount: educationHistory.length,
       };
 
-      console.log('[Extraction] Profile fields found:', {
-        name: Boolean(rawData.name),
-        headline: Boolean(rawData.headline),
-        about: Boolean(rawData.about),
-        skillsCount: rawData.extractedSkills?.length || 0,
-        experienceCount: rawData.workHistory?.length || 0,
-        educationCount: rawData.educationHistory?.length || 0,
-      });
+      diagnostics.profileSignalsDetected = profileSignals;
+
+      console.log('[Parser] Name found:', profileSignals.name);
+      console.log('[Parser] Headline found:', profileSignals.headline);
+      console.log('[Parser] About found:', profileSignals.about);
+      console.log('[Parser] Skills count:', profileSignals.skillsCount);
+      console.log('[Parser] Experience count:', profileSignals.experienceCount);
+
+      const hasAnySignals =
+        profileSignals.name ||
+        profileSignals.headline ||
+        profileSignals.about ||
+        profileSignals.skillsCount > 0 ||
+        profileSignals.experienceCount > 0;
+
+      if (!hasAnySignals) {
+        console.log('[Extraction Provider] Page accessed but no profile signals detected');
+        return {
+          success: false,
+          error: {
+            code: 'PROFILE_DATA_NOT_AVAILABLE',
+            message:
+              'We accessed the page but could not find sufficient public profile information to analyze.',
+          },
+          diagnostics,
+        };
+      }
+
+      const rawData: RawExtractedProfile = {
+        rawUrl: cleanUrl,
+        name: candidateName || undefined,
+        headline: parsed.headline?.trim() || undefined,
+        about: parsed.about?.trim() || undefined,
+        locationName: parsed.locationName?.trim() || undefined,
+        photoUrl: parsed.photoUrl?.trim() || imageContent || undefined,
+        workHistory,
+        educationHistory,
+        extractedSkills: Array.from(new Set(extractedSkills)),
+        portfolioProjects,
+      };
 
       return {
         success: true,
         data: rawData,
+        diagnostics,
       };
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[Extraction Error]:', errMsg);
+    } catch (parseErr: unknown) {
+      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      console.error(`[Parser Error]: ${errMsg}`);
       return {
         success: false,
         error: {
-          code: 'PROFILE_EXTRACTION_FAILED',
-          message: `Profile extraction failed: ${errMsg}`,
+          code: 'PROFILE_DATA_NOT_AVAILABLE',
+          message: `Failed to parse extracted profile content: ${errMsg}`,
         },
+        diagnostics,
       };
     }
+  }
+
+  private classifyPageType(status?: number, url?: string, html?: string): PageTypeClassification {
+    if (status === 999 || (html && html.includes('trkCode=bf'))) {
+      return 'blocked';
+    }
+
+    if (status === 403 || status === 429) {
+      return 'blocked';
+    }
+
+    if (url && (url.includes('/authwall') || url.includes('/login') || url.includes('sign_in'))) {
+      return 'auth_wall';
+    }
+
+    if (html && (html.includes('authwall') || html.includes('Sign In to LinkedIn') || html.includes('join-form'))) {
+      return 'login';
+    }
+
+    if (html && (html.includes('captcha') || html.includes('security-check') || html.includes('challenge'))) {
+      return 'challenge';
+    }
+
+    if (!html || html.trim().length === 0) {
+      return 'empty';
+    }
+
+    if (html.includes('og:title') || html.includes('profile-displayphoto') || html.includes('pv-top-card')) {
+      return 'profile';
+    }
+
+    return 'unknown';
   }
 }

@@ -13,6 +13,23 @@ export type ImportStatus =
   | 'success'
   | 'error';
 
+export interface IngestionDiagnostics {
+  provider: string;
+  httpStatus?: number;
+  pageType: string;
+  redirectedUrl?: string;
+  responseContentType?: string;
+  responseLength?: number;
+  profileSignalsDetected?: {
+    name: boolean;
+    headline: boolean;
+    about: boolean;
+    skillsCount: number;
+    experienceCount: number;
+    educationCount: number;
+  };
+}
+
 export interface IngestionError {
   code: string;
   message: string;
@@ -23,6 +40,7 @@ export interface ProfileIngestionResult {
   success: boolean;
   profile?: Profile;
   error?: IngestionError;
+  diagnostics?: IngestionDiagnostics;
   rawPayload?: unknown;
 }
 

@@ -4,6 +4,8 @@ import { profileIngestionService } from '../services/ingestion/profileIngestion.
 export async function handleProfileImport(req: Request, res: Response): Promise<void> {
   const { profileUrl, candidateName } = req.body || {};
 
+  console.log(`[Profile Import Controller] Received payload for URL: "${profileUrl || ''}"`);
+
   if (!profileUrl || typeof profileUrl !== 'string' || !profileUrl.trim()) {
     res.status(400).json({
       success: false,
@@ -17,7 +19,7 @@ export async function handleProfileImport(req: Request, res: Response): Promise<
 
   const trimmedUrl = profileUrl.trim();
 
-  // Validate LinkedIn URL format
+  // Validate LinkedIn URL syntax
   const isValidLinkedinUrl =
     /^(https?:\/\/)?(www\.)?linkedin\.com\/in\/[\w-]+\/?$/i.test(trimmedUrl) ||
     /^linkedin\.com\/in\/[\w-]+\/?$/i.test(trimmedUrl);
@@ -36,13 +38,34 @@ export async function handleProfileImport(req: Request, res: Response): Promise<
   try {
     const result = await profileIngestionService.importProfileFromUrl(trimmedUrl, candidateName);
 
+    // Include diagnostics in development mode
+    const isDev = process.env.NODE_ENV !== 'production';
+    const responsePayload = {
+      ...result,
+      diagnostics: isDev ? result.diagnostics : undefined,
+    };
+
     if (!result.success) {
-      const statusCode = result.error?.code === 'INVALID_PROFILE_URL' ? 400 : 422;
-      res.status(statusCode).json(result);
+      let statusCode = 422;
+      const errorCode = result.error?.code;
+
+      if (errorCode === 'INVALID_PROFILE_URL') {
+        statusCode = 400;
+      } else if (errorCode === 'PROFILE_LOGIN_REQUIRED' || errorCode === 'PROFILE_NOT_PUBLIC') {
+        statusCode = 403;
+      } else if (errorCode === 'PROFILE_ACCESS_BLOCKED') {
+        statusCode = 429;
+      } else if (errorCode === 'NETWORK_ERROR') {
+        statusCode = 502;
+      } else if (errorCode === 'PROVIDER_UNAVAILABLE') {
+        statusCode = 503;
+      }
+
+      res.status(statusCode).json(responsePayload);
       return;
     }
 
-    res.status(200).json(result);
+    res.status(200).json(responsePayload);
   } catch (error: any) {
     console.error('[Profile Import Controller Error]:', error);
     res.status(500).json({

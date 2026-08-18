@@ -1,5 +1,5 @@
 import { Profile, Experience, Education, Project, Certification } from '../../types/profile.types.js';
-import { RawExtractedProfile } from '../ingestion/linkedinExtractionProvider.service.js';
+import { RawExtractedProfile } from '../ingestion/types.js';
 
 export function normalizeRawExtractedProfile(raw: RawExtractedProfile): Profile {
   const profileUrl = raw.rawUrl?.trim() || undefined;

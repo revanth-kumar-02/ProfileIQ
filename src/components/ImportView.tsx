@@ -7,11 +7,12 @@ interface ImportViewProps {
 }
 
 export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
-  const { importStatus, importError } = useAnalysisStore();
+  const { importStatus, importError, importDiagnostics } = useAnalysisStore();
 
   const [profileUrl, setProfileUrl] = useState('');
   const [candidateName, setCandidateName] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const handleImport = async (urlToImport: string, nameToUse?: string) => {
     setValidationError(null);
@@ -39,11 +40,11 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
       const result = await ProfileImportService.importProfile(targetUrl, nameToUse || candidateName);
 
       if (result.success && result.profile) {
-        analysisStore.setCurrentProfile(result.profile);
+        analysisStore.setCurrentProfile(result.profile, result.diagnostics);
         onSuccess();
       } else {
-        const errorMsg = result.error?.message || "We couldn't extract information from this LinkedIn profile.";
-        analysisStore.setImportStatus('error', errorMsg);
+        const errorMsg = result.error?.message || "We couldn't extract public profile information from this LinkedIn URL.";
+        analysisStore.setImportStatus('error', errorMsg, result.diagnostics);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during profile ingestion.';
@@ -124,14 +125,42 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
 
         {/* Global Ingestion Error Banner */}
         {importStatus === 'error' && importError && (
-          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
-            <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0 mt-0.5">
-              warning
-            </span>
-            <div className="space-y-0.5">
-              <span className="font-bold block">Extraction Failed</span>
-              <span>{importError}</span>
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-2">
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0 mt-0.5">
+                warning
+              </span>
+              <div className="space-y-1">
+                <span className="font-bold block text-rose-950 text-sm">Extraction Failed</span>
+                <span className="leading-relaxed block">{importError}</span>
+              </div>
             </div>
+
+            {/* Development Diagnostics Accordion */}
+            {importDiagnostics && (
+              <div className="pt-2 border-t border-rose-200/70">
+                <button
+                  type="button"
+                  onClick={() => setShowDiagnostics(!showDiagnostics)}
+                  className="text-[11px] font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 focus:outline-none"
+                >
+                  <span className="material-symbols-outlined text-[14px]">
+                    {showDiagnostics ? 'expand_less' : 'expand_more'}
+                  </span>
+                  <span>{showDiagnostics ? 'Hide Extraction Diagnostics' : 'Show Extraction Diagnostics (Dev Mode)'}</span>
+                </button>
+
+                {showDiagnostics && (
+                  <div className="mt-2 p-3 bg-white/80 rounded-lg border border-rose-200 font-mono text-[11px] space-y-1 text-slate-700">
+                    <div><strong>Provider:</strong> {importDiagnostics.provider}</div>
+                    <div><strong>HTTP Status:</strong> {importDiagnostics.httpStatus ?? 'N/A'}</div>
+                    <div><strong>Page Classification:</strong> <span className="font-bold text-rose-700">{importDiagnostics.pageType}</span></div>
+                    <div><strong>Response Length:</strong> {importDiagnostics.responseLength ?? 0} bytes</div>
+                    <div><strong>Signals Detected:</strong> Name ({String(importDiagnostics.profileSignalsDetected?.name)}), Headline ({String(importDiagnostics.profileSignalsDetected?.headline)}), Skills ({importDiagnostics.profileSignalsDetected?.skillsCount || 0}), Experience ({importDiagnostics.profileSignalsDetected?.experienceCount || 0})</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
