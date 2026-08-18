@@ -5,31 +5,26 @@
  * e.g. import { Profile, AnalysisResult, TargetRole } from '../types';
  */
 
-// Legacy type kept for backward compatibility during migration
+// Core type exports
 export type { Profile, ProfileSource, Experience, Education, Project, Certification } from './types/profile';
 export type { AnalysisResult, AnalysisState, AnalysisStatus, AnalysisMetadata, Finding, FindingCategory, PriorityRecommendation, PriorityLevel, ImpactLevel, HeadlineOption, OptimizationDetail, OptimizationFormula, SectionAnalysisResult, SectionStatus, SectionStatusType, RoadmapStep } from './types/analysis';
 export { ANALYSIS_STAGES } from './types/analysis';
 export type { TargetRole } from './types/role';
 
 /**
- * ViewMode — controls which screen is currently rendered in the app.
+ * AppStep / ViewMode — controls which screen in the guided user flow is active.
+ *
+ * Guided Flow:
+ * import -> profile-review -> target-role -> analyzing -> report -> refine
  */
 export type ViewMode =
-  | 'welcome'
+  | 'import'
+  | 'profile-review'
+  | 'target-role'
+  | 'analyzing'
   | 'report'
-  | 'what-to-improve'
-  | 'sections'
-  | 'roadmap'
-  | 'optimization-detail'
-  | 'history';
+  | 'refine';
 
-/**
- * Legacy ProfileReport — the combined profile + analysis shape used throughout the current UI.
- *
- * @deprecated Use separate Profile and AnalysisResult types for new code.
- * This interface is preserved so existing components continue to work while
- * the migration to the split model is completed.
- */
 export interface ImprovementItem {
   id: string;
   number: string;
@@ -63,7 +58,6 @@ export interface RoadmapItem {
   description: string;
   phase: 'NOW' | 'NEXT' | 'REFINE';
   side: 'left' | 'right';
-  /** Optional key for the OptimizationDetail this step opens */
   optimizationKey?: string;
   completed?: boolean;
 }
