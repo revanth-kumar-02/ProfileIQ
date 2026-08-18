@@ -24,7 +24,7 @@ export class ApiIngestionProvider implements ProfileIngestionProvider {
       };
     }
 
-    const apiUrl = `${API_CONFIG.baseUrl}/api/profile/import`;
+    const apiUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.importProfile}`;
 
     try {
       const response = await fetch(apiUrl, {
