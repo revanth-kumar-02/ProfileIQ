@@ -9,11 +9,10 @@
 const env = (import.meta as unknown as { env?: Record<string, string | boolean> }).env || {};
 
 export const API_CONFIG = {
-  baseUrl: (env.VITE_API_BASE_URL as string) || '/api/v1',
+  baseUrl: (env.VITE_API_BASE_URL as string) || 'http://localhost:3001/api',
   isDevMode: Boolean(env.DEV),
   endpoints: {
-    ingestProfile: '/profiles/ingest',
-    analyzeProfile: '/analysis/evaluate',
-    getTargetRoles: '/roles',
+    health: '/health',
+    analyze: '/analysis',
   },
 };
