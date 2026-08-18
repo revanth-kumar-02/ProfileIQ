@@ -3,6 +3,7 @@ import cors from 'cors';
 import { ENV } from './config/env.js';
 import healthRoutes from './routes/health.routes.js';
 import analysisRoutes from './routes/analysis.routes.js';
+import profileRoutes from './routes/profile.routes.js';
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(express.json({ limit: '5mb' }));
 // API Routes
 app.use('/api', healthRoutes);
 app.use('/api', analysisRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Catch-all for non-existing endpoints
 app.use((_req, res) => {

@@ -10,3 +10,7 @@ export function getGroqClient(): Groq {
     apiKey: ENV.GROQ_API_KEY || 'MISSING_API_KEY',
   });
 }
+
+export function getGroqModel(): string {
+  return ENV.GROQ_MODEL || 'openai/gpt-oss-120b';
+}

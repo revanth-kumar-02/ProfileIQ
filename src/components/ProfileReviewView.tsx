@@ -13,7 +13,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
       <div className="w-full max-w-xl mx-auto px-4 py-16 text-center space-y-4">
         <span className="material-symbols-outlined text-4xl text-slate-400">person_off</span>
         <h2 className="text-xl font-bold text-[#0F172A]">No Profile Imported</h2>
-        <p className="text-xs text-slate-500">Start by importing your LinkedIn profile to review extracted data.</p>
+        <p className="text-xs text-slate-500">Start by importing a valid LinkedIn profile URL to review extracted data.</p>
         <button
           onClick={() => analysisStore.setImportStatus('idle')}
           className="px-4 py-2 bg-[#004ac6] text-white text-xs font-bold rounded-lg"
@@ -53,7 +53,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
           Review Extracted Profile Data
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto">
-          Verify the information parsed from <strong className="text-slate-800">{basic.profileUrl || 'imported profile'}</strong> before selecting your target role.
+          Verify the information parsed from <strong className="text-slate-800">{basic.profileUrl || currentProfile.profileUrl || 'imported profile'}</strong> before selecting your target role.
         </p>
       </div>
 
@@ -75,8 +75,8 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
               </div>
             )}
             <div>
-              <h2 className="text-base font-bold text-[#0F172A]">{basic.fullName || 'Candidate Profile'}</h2>
-              <span className="text-xs text-slate-400 font-mono">{basic.profileUrl || 'Profile Imported'}</span>
+              <h2 className="text-base font-bold text-[#0F172A]">{basic.fullName || 'Name not available'}</h2>
+              <span className="text-xs text-slate-400 font-mono font-medium">{basic.profileUrl || currentProfile.profileUrl || 'URL not specified'}</span>
             </div>
           </div>
 
@@ -115,7 +115,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
             </div>
           ) : (
             <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/80 text-xs text-amber-900 font-medium">
-              No headline detected on imported profile.
+              No headline detected
             </div>
           )}
         </div>
@@ -131,7 +131,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
             </p>
           ) : (
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-500 italic">
-              No summary or about section was detected from this profile.
+              No About section detected
             </div>
           )}
         </div>
@@ -155,7 +155,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
               </div>
             ) : (
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-500 italic">
-                No skills extracted.
+                No skills detected from the extracted profile.
               </div>
             )}
           </div>
@@ -170,7 +170,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
                 <strong className="text-slate-800">
                   {currentProfile.experience.length > 0
                     ? `${currentProfile.experience.length} entry detected`
-                    : 'No work experience detected'}
+                    : 'No entries detected'}
                 </strong>
               </div>
               <div>
@@ -178,7 +178,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
                 <strong className="text-slate-800">
                   {currentProfile.projects.length > 0
                     ? `${currentProfile.projects.length} project(s) detected`
-                    : 'No project information was detected'}
+                    : 'No entries detected'}
                 </strong>
               </div>
               <div>
@@ -186,7 +186,7 @@ export const ProfileReviewView: React.FC<ProfileReviewViewProps> = ({ onConfirm 
                 <strong className="text-slate-800">
                   {currentProfile.education.length > 0
                     ? `${currentProfile.education.length} entry detected`
-                    : 'No education entries detected'}
+                    : 'No entries detected'}
                 </strong>
               </div>
             </div>

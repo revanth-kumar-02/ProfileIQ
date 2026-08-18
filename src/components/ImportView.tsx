@@ -6,12 +6,6 @@ interface ImportViewProps {
   onSuccess: () => void;
 }
 
-const DYNAMIC_SAMPLE_URLS = [
-  { name: 'Sarah Connor', url: 'linkedin.com/in/sarah-connor' },
-  { name: 'David Kim', url: 'linkedin.com/in/david-kim-dev' },
-  { name: 'Elena Rostova', url: 'linkedin.com/in/elena-rostova' },
-];
-
 export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
   const { importStatus, importError } = useAnalysisStore();
 
@@ -28,6 +22,16 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
       return;
     }
 
+    // Basic frontend format check
+    const isValidFormat =
+      /^(https?:\/\/)?(www\.)?linkedin\.com\/in\/[\w-]+\/?$/i.test(targetUrl) ||
+      /^linkedin\.com\/in\/[\w-]+\/?$/i.test(targetUrl);
+
+    if (!isValidFormat) {
+      setValidationError('Please enter a valid LinkedIn profile URL (e.g., https://www.linkedin.com/in/username).');
+      return;
+    }
+
     analysisStore.setImportStatus('validating');
 
     try {
@@ -38,11 +42,11 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
         analysisStore.setCurrentProfile(result.profile);
         onSuccess();
       } else {
-        const errorMsg = result.error?.message || 'Failed to import profile. Please check the URL and try again.';
+        const errorMsg = result.error?.message || "We couldn't extract information from this LinkedIn profile.";
         analysisStore.setImportStatus('error', errorMsg);
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during ingestion.';
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during profile ingestion.';
       analysisStore.setImportStatus('error', errorMsg);
     }
   };
@@ -68,7 +72,7 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
           Understand what your profile communicates.
         </h1>
         <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto leading-relaxed">
-          Import your LinkedIn profile, select your career objective, and generate a dynamic profile intelligence assessment.
+          Import your LinkedIn profile URL to extract real candidate signals, review your details, and analyze against target career standards.
         </p>
       </div>
 
@@ -112,7 +116,7 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
             type="text"
             value={candidateName}
             onChange={(e) => setCandidateName(e.target.value)}
-            placeholder="e.g. Jane Doe"
+            placeholder="e.g. Alex Chen"
             className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#004ac6] transition-all disabled:opacity-60"
             disabled={isProcessing}
           />
@@ -125,7 +129,7 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
               warning
             </span>
             <div className="space-y-0.5">
-              <span className="font-bold block">Ingestion Failed</span>
+              <span className="font-bold block">Extraction Failed</span>
               <span>{importError}</span>
             </div>
           </div>
@@ -141,48 +145,19 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
             <>
               <span className="material-symbols-outlined text-[18px] animate-spin">sync</span>
               <span>
-                {importStatus === 'validating' ? 'Validating URL...' : 'Ingesting profile data...'}
+                {importStatus === 'validating'
+                  ? 'Validating profile URL...'
+                  : 'Importing your LinkedIn profile... This may take a moment.'}
               </span>
             </>
           ) : (
             <>
-              <span>Import & Parse Profile</span>
+              <span>Import Profile</span>
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
             </>
           )}
         </button>
       </form>
-
-      {/* Quick Test Ingestion URL Presets */}
-      <div className="space-y-3 pt-2">
-        <div className="text-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Or test ingestion with sample profile URLs
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {DYNAMIC_SAMPLE_URLS.map((sample) => (
-            <button
-              key={sample.url}
-              type="button"
-              onClick={() => {
-                setProfileUrl(sample.url);
-                setCandidateName(sample.name);
-                handleImport(sample.url, sample.name);
-              }}
-              disabled={isProcessing}
-              className="p-3 bg-white hover:bg-blue-50/60 border border-slate-200/80 hover:border-blue-200 rounded-xl transition-all text-left space-y-1 shadow-2xs"
-            >
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-[#004ac6]">link</span>
-                <span className="text-xs font-bold text-[#0F172A] truncate">{sample.name}</span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-mono truncate">{sample.url}</p>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
