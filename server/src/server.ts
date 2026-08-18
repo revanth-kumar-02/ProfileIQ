@@ -7,5 +7,7 @@ app.listen(ENV.PORT, () => {
   console.log(`  - GET  http://localhost:${ENV.PORT}/api/health`);
   console.log(`  - POST http://localhost:${ENV.PORT}/api/analysis`);
   console.log(`  - POST http://localhost:${ENV.PORT}/api/profile/import`);
+  console.log(`  - GET  http://localhost:${ENV.PORT}/api/profile/provider-status`);
+  console.log(`[ProfileIQ Server] Configured Provider: ${ENV.PROFILE_EXTRACTION_PROVIDER}`);
   console.log(`[ProfileIQ Server] Groq Model: ${ENV.GROQ_MODEL}`);
 });

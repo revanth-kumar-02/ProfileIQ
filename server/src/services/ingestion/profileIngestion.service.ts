@@ -1,7 +1,7 @@
-import { LinkedInExtractionProvider } from './linkedinExtractionProvider.service.js';
+import { profileProviderRegistry } from './profileProviderRegistry.js';
 import { normalizeRawExtractedProfile } from '../profile/profileNormalizer.service.js';
 import { Profile } from '../../types/profile.types.js';
-import { ProfileExtractionProvider, ExtractionResult, ExtractionDiagnostics } from './types.js';
+import { ExtractionDiagnostics, ProviderStatusData } from './types.js';
 
 export interface ProfileImportResponse {
   success: boolean;
@@ -16,25 +16,11 @@ export interface ProfileImportResponse {
 }
 
 export class ProfileIngestionService {
-  private extractionProvider: ProfileExtractionProvider;
-
-  constructor(provider?: ProfileExtractionProvider) {
-    this.extractionProvider = provider || new LinkedInExtractionProvider();
-  }
-
   /**
-   * Set or replace extraction provider
+   * Import candidate profile from URL using active provider / provider chain
    */
-  setProvider(provider: ProfileExtractionProvider): void {
-    this.extractionProvider = provider;
-  }
-
-  getProviderName(): string {
-    return this.extractionProvider.name;
-  }
-
   async importProfileFromUrl(profileUrl: string, candidateNameHint?: string): Promise<ProfileImportResponse> {
-    const result: ExtractionResult = await this.extractionProvider.extractProfile(profileUrl);
+    const result = await profileProviderRegistry.executeExtraction(profileUrl);
 
     if (!result.success || !result.data) {
       return {
@@ -52,7 +38,7 @@ export class ProfileIngestionService {
       rawData.name = candidateNameHint.trim();
     }
 
-    console.log('[Normalization] Profile successfully normalized');
+    console.log(`[Normalization] Profile successfully normalized (Source Provider: ${result.provider})`);
     const normalizedProfile = normalizeRawExtractedProfile(rawData);
 
     return {
@@ -61,6 +47,23 @@ export class ProfileIngestionService {
         profile: normalizedProfile,
       },
       diagnostics: result.diagnostics,
+    };
+  }
+
+  /**
+   * Return safe capability & status info for registered extraction providers
+   */
+  async getProviderStatus(): Promise<ProviderStatusData> {
+    const activeProvider = await profileProviderRegistry.getActiveProvider();
+    const registeredProviders = await profileProviderRegistry.getProvidersStatus();
+    const isAvailable = await activeProvider.isAvailable();
+    const configuredProvider = process.env.PROFILE_EXTRACTION_PROVIDER || 'direct-linkedin';
+
+    return {
+      available: isAvailable,
+      providerConfigured: Boolean(configuredProvider),
+      activeProvider: activeProvider.id,
+      registeredProviders,
     };
   }
 }

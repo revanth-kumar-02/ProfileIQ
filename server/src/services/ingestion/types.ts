@@ -53,11 +53,15 @@ export interface RawExtractedProfile {
 
 export interface ExtractionDiagnostics {
   provider: string;
+  providerAvailable?: boolean;
+  configuredProvider?: string;
+  fallbackAttempted?: boolean;
   httpStatus?: number;
   pageType: PageTypeClassification;
   redirectedUrl?: string;
   responseContentType?: string;
   responseLength?: number;
+  recordsFound?: boolean;
   profileSignalsDetected: {
     name: boolean;
     headline: boolean;
@@ -70,6 +74,7 @@ export interface ExtractionDiagnostics {
 
 export interface ExtractionResult {
   success: boolean;
+  provider: string;
   data?: RawExtractedProfile;
   error?: {
     code: ExtractionErrorCode | string;
@@ -79,6 +84,19 @@ export interface ExtractionResult {
 }
 
 export interface ProfileExtractionProvider {
+  id: string;
   name: string;
+  isAvailable(): Promise<boolean>;
   extractProfile(profileUrl: string): Promise<ExtractionResult>;
+}
+
+export interface ProviderStatusData {
+  available: boolean;
+  providerConfigured: boolean;
+  activeProvider: string;
+  registeredProviders: {
+    id: string;
+    name: string;
+    available: boolean;
+  }[];
 }
