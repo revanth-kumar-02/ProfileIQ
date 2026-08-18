@@ -1,23 +1,69 @@
 import React, { useState } from 'react';
-import { ProfileReport } from '../types';
+import { useAnalysisStore, analysisStore } from '../store/analysisStore';
 
 interface RefineViewProps {
-  report: ProfileReport;
   sectionKey: string;
   onBack: () => void;
-  onUpdateHeadline: (newHeadline: string) => void;
+  onShowToast: (msg: string) => void;
 }
 
 export const RefineView: React.FC<RefineViewProps> = ({
-  report,
   sectionKey,
   onBack,
-  onUpdateHeadline,
+  onShowToast,
 }) => {
-  const detail = report.optimizationDetails[sectionKey] || report.optimizationDetails['headline'];
+  const { currentProfile, currentAnalysis } = useAnalysisStore();
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [appliedId, setAppliedId] = useState<string | null>(null);
+
+  if (!currentProfile || !currentAnalysis) {
+    return (
+      <div className="w-full max-w-xl mx-auto px-4 py-16 text-center space-y-4">
+        <h2 className="text-xl font-bold text-[#0F172A]">No Analysis Context Found</h2>
+        <button onClick={onBack} className="px-4 py-2 bg-[#004ac6] text-white text-xs font-bold rounded-lg">
+          ← Back to Analysis
+        </button>
+      </div>
+    );
+  }
+
+  const detail =
+    currentAnalysis.optimizationDetails[sectionKey] ||
+    currentAnalysis.optimizationDetails['headline'] || {
+      key: sectionKey,
+      badge: 'SECTION OPTIMIZATION',
+      title: `Optimize Profile ${sectionKey.toUpperCase()}`,
+      subtitle: `Refining identity for ${currentAnalysis.targetRole.title}.`,
+      currentValue: currentProfile.basicInfo.headline || 'No content found',
+      currentLabel: 'CURRENT CONTENT',
+      whyLimitingParagraphs: [
+        `Your current ${sectionKey} requires stronger alignment with ${currentAnalysis.targetRole.title}.`,
+        'Recruiters look for high-signal keywords and quantifiable achievements in search results.',
+      ],
+      formula: {
+        targetDirection: `"${currentAnalysis.targetRole.title}"`,
+        technicalStrength: '"Core Expertise"',
+        specialization: '"Key Impact"',
+      },
+      generatedOptions: [
+        {
+          id: 'gen-opt-1',
+          headlineText: `${currentAnalysis.targetRole.title} | Specializing in Modern Systems & Product Scalability`,
+          bullets: [
+            'Directly indexes for recruiter search queries.',
+            'Highlights core professional direction.',
+          ],
+        },
+      ],
+    };
+
+  const currentOriginalText =
+    sectionKey === 'headline'
+      ? currentProfile.basicInfo.headline || 'No headline set'
+      : sectionKey === 'about'
+      ? currentProfile.about || 'No summary text available'
+      : currentProfile.basicInfo.headline || 'No content found';
 
   const [customTarget, setCustomTarget] = useState(detail.formula.targetDirection.replace(/"/g, ''));
   const [customTech, setCustomTech] = useState(detail.formula.technicalStrength.replace(/"/g, ''));
@@ -27,12 +73,16 @@ export const RefineView: React.FC<RefineViewProps> = ({
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    onShowToast('Copied text to clipboard!');
     setTimeout(() => setCopiedId(null), 2500);
   };
 
   const handleApply = (id: string, text: string) => {
-    onUpdateHeadline(text);
+    if (sectionKey === 'headline') {
+      analysisStore.updateProfileHeadline(text);
+    }
     setAppliedId(id);
+    onShowToast('Applied optimization to active profile!');
     setTimeout(() => setAppliedId(null), 3000);
   };
 
@@ -64,17 +114,17 @@ export const RefineView: React.FC<RefineViewProps> = ({
           {detail.title}
         </h1>
         <p className="text-xs sm:text-sm text-slate-500">
-          Target Role: <strong className="text-[#004ac6]">{report.targetRole}</strong>
+          Target Role: <strong className="text-[#004ac6]">{currentAnalysis.targetRole.title}</strong>
         </p>
       </div>
 
       {/* 1. CURRENT CONTENT */}
       <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-2xs space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          {detail.currentLabel || 'CURRENT CONTENT'}
+          CURRENT PROFILE CONTENT
         </span>
         <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 font-mono text-xs sm:text-sm font-bold text-[#0F172A]">
-          {detail.currentValue}
+          {currentOriginalText}
         </div>
       </div>
 
@@ -145,7 +195,7 @@ export const RefineView: React.FC<RefineViewProps> = ({
       {/* 4. OPTIONAL IMPROVEMENTS */}
       <div className="space-y-4 pt-2 border-t border-slate-200/80">
         <h2 className="text-sm font-bold text-[#0F172A]">
-          Optional Improvements
+          Optional AI Optimizations
         </h2>
 
         <div className="space-y-3">

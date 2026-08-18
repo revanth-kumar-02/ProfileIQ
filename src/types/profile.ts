@@ -1,11 +1,12 @@
 /**
- * ProfileIQ — Core Profile Types
+ * ProfileIQ — Core Profile Domain Model
  *
- * These types define the structured data model for a user's professional profile.
- * Components must consume these types; never hardcode profile values directly in JSX.
+ * Defines the flexible normalized profile schema.
+ * All imported profile data (LinkedIn, manual, or external provider) is normalized into this model.
+ * Fields are optional to support incomplete imported profiles.
  */
 
-export type ProfileSource = 'linkedin' | 'manual';
+export type ProfileSource = 'linkedin' | 'manual' | 'provider';
 
 export interface Experience {
   id: string;
@@ -48,25 +49,25 @@ export interface Certification {
   credentialUrl?: string;
 }
 
+export interface ProfileBasicInfo {
+  fullName?: string;
+  headline?: string;
+  location?: string;
+  profileImageUrl?: string;
+  profileUrl?: string;
+}
+
 export interface Profile {
   id?: string;
   source: ProfileSource;
-
-  basic: {
-    fullName?: string;
-    profileUrl?: string;
-    headline?: string;
-    location?: string;
-    avatarUrl?: string;
-  };
-
+  profileUrl?: string;
+  basicInfo: ProfileBasicInfo;
   about?: string;
-
   experience: Experience[];
   education: Education[];
   skills: string[];
   projects: Project[];
-  certifications?: Certification[];
-
-  lastUpdated?: string;
+  certifications: Certification[];
+  importedAt?: string;
+  updatedAt?: string;
 }

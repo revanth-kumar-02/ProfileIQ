@@ -1,20 +1,26 @@
 import React from 'react';
-import { ViewMode, ProfileReport } from '../types';
+import { ViewMode } from '../types';
+import { useAnalysisStore, analysisStore } from '../store/analysisStore';
 
 interface NavbarProps {
   currentView: ViewMode;
   onNavigate: (view: ViewMode) => void;
-  activeProfile: ProfileReport;
   onStartNewAnalysis: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onNavigate,
-  activeProfile,
   onStartNewAnalysis,
 }) => {
+  const { currentProfile } = useAnalysisStore();
   const showNewAnalysis = currentView === 'report' || currentView === 'refine';
+
+  const avatarUrl =
+    currentProfile?.basicInfo.profileImageUrl ||
+    (currentProfile?.basicInfo.fullName
+      ? `https://ui-avatars.com/api/?name=${encodeURIComponent(currentProfile.basicInfo.fullName)}&background=004ac6&color=fff&size=64`
+      : undefined);
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200/80 shadow-2xs">
@@ -23,7 +29,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Brand Logo & Name */}
           <div
             id="brand-logo-container"
-            onClick={() => onNavigate('import')}
+            onClick={() => {
+              if (currentProfile) {
+                onNavigate('report');
+              } else {
+                onNavigate('import');
+              }
+            }}
             className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
           >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#004ac6] to-[#7C3AED] flex items-center justify-center text-white shadow-2xs transition-transform group-hover:scale-105">
@@ -37,7 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Right Controls: New Analysis & Avatar */}
+          {/* Right Controls */}
           <div className="flex items-center gap-3">
             {showNewAnalysis && (
               <button
@@ -50,17 +62,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            <div className="flex items-center gap-2">
-              <img
-                src={activeProfile.avatarUrl}
-                alt={activeProfile.userName}
-                referrerPolicy="no-referrer"
-                className="w-7 h-7 rounded-full object-cover border border-slate-200 shadow-2xs"
-              />
-              <span className="text-xs font-bold text-[#0F172A] hidden sm:inline-block">
-                {activeProfile.userName}
-              </span>
-            </div>
+            {currentProfile ? (
+              <div className="flex items-center gap-2">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={currentProfile.basicInfo.fullName || 'User Profile'}
+                    referrerPolicy="no-referrer"
+                    className="w-7 h-7 rounded-full object-cover border border-slate-200 shadow-2xs"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[#004ac6] text-white text-xs font-bold flex items-center justify-center">
+                    {(currentProfile.basicInfo.fullName || 'U').charAt(0)}
+                  </div>
+                )}
+                <span className="text-xs font-bold text-[#0F172A] hidden sm:inline-block">
+                  {currentProfile.basicInfo.fullName || 'Candidate'}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => onNavigate('import')}
+                className="text-xs font-bold text-[#004ac6] hover:underline"
+              >
+                Import Profile
+              </button>
+            )}
           </div>
         </div>
       </div>

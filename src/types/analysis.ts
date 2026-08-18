@@ -1,9 +1,11 @@
 /**
- * ProfileIQ — Analysis Result Types
+ * ProfileIQ — Analysis Result Types & Domain Model
  *
- * These types define the structured data model for intelligence analysis results.
- * The UI must render these types dynamically; never hardcode individual findings in JSX.
+ * All report rendering, evidence breakdowns, strategic priorities, section audits,
+ * and contextual optimizations are driven by this dynamic model.
  */
+
+import { TargetRole } from './role';
 
 export type FindingCategory = 'strength' | 'developing' | 'missing' | 'warning';
 export type ImpactLevel = 'high' | 'medium-high' | 'medium' | 'low';
@@ -23,21 +25,53 @@ export interface Finding {
 
 export interface PriorityRecommendation {
   id: string;
-  rank: number;
+  rank: string; // e.g. "01", "02"
   title: string;
   priority: PriorityLevel;
-  impact: ImpactLevel;
+  impact: string; // e.g. "High Impact"
   impactColor: 'violet' | 'secondary' | 'primary';
-  expectedImpact: string;
   description: string;
-  evidence?: string[];
   evidenceLabel?: string;
   evidenceValue?: string;
   expectedLabel?: string;
   expectedValue?: string;
   missingEvidenceTags?: string[];
   relatedSection: string;
-  /** Key used to look up the OptimizationDetail for this recommendation */
+  optimizationKey?: string;
+}
+
+export interface AlignmentDimension {
+  name: string;
+  status: string;
+  score: number; // 0-100
+  color: string;
+}
+
+export interface AlignmentAnalysis {
+  status: 'strong' | 'developing' | 'limited';
+  statusLabel: string; // e.g. "DEVELOPING ALIGNMENT"
+  alignmentScore: number; // 0-100
+  dimensions: AlignmentDimension[];
+}
+
+export interface SectionAnalysis {
+  id: string;
+  name: string;
+  status: SectionStatus;
+  statusType: SectionStatusType;
+  whatWeFound: string;
+  evidenceQuote?: string;
+  whyThisMatters: string;
+  whatToDoNext: string;
+  optimizationKey?: string;
+}
+
+export interface RoadmapStage {
+  id: string;
+  rank: string;
+  title: string;
+  description: string;
+  phase: 'NOW' | 'NEXT' | 'REFINE';
   optimizationKey?: string;
 }
 
@@ -65,93 +99,62 @@ export interface OptimizationDetail {
   generatedOptions: HeadlineOption[];
 }
 
-export interface SectionAnalysisResult {
-  id: string;
-  name: string;
-  status: SectionStatus;
-  statusType: SectionStatusType;
-  whatWeFound: string;
-  evidenceQuote: string;
-  whyThisMatters: string;
-  whatToDoNext: string;
-  optimizationKey?: string;
-}
-
-export interface RoadmapStep {
-  id: string;
-  rank: number;
-  title: string;
-  description: string;
-  phase: 'NOW' | 'NEXT' | 'REFINE';
-  side: 'left' | 'right';
-  optimizationKey?: string;
-  completed?: boolean;
-}
-
-export interface AnalysisMetadata {
-  analyzedAt: string;
-  modelVersion?: string;
-  benchmarkSize?: number;
-}
-
-export interface AnalysisResult {
+export interface ProfileAnalysis {
   id: string;
   profileId?: string;
-  targetRole: string;
-  targetRoleId?: string;
+  profileUrl?: string;
+  userName?: string;
 
-  summary: string;
-  analysisHeadline: string;
-  executiveSummary: string;
-  executiveInsight?: string;
+  targetRole: TargetRole;
 
-  alignmentScore: number; // 0–100
-
-  evidence: {
-    strong: string[];
-    developing: string[];
-    missing: string[];
+  overallAssessment: {
+    status: 'strong' | 'developing' | 'limited';
+    summary: string;
   };
 
-  strengths: Finding[];
-  developingAreas: Finding[];
-  missingSignals: Finding[];
+  analysisHeadline: string;
+  executiveAssessment: string;
+
+  alignment: AlignmentAnalysis;
+
+  evidence: {
+    strong: Finding[];
+    developing: Finding[];
+    missing: Finding[];
+  };
 
   priorities: PriorityRecommendation[];
 
-  sectionAnalysis: SectionAnalysisResult[];
+  sections: SectionAnalysis[];
 
-  roadmap: RoadmapStep[];
+  roadmap: RoadmapStage[];
 
   optimizationDetails: Record<string, OptimizationDetail>;
 
-  metadata: AnalysisMetadata;
+  analyzedAt: string;
 }
 
-/**
- * Application-level state for analysis lifecycle.
- */
 export type AnalysisStatus =
   | 'idle'
   | 'no-profile'
   | 'profile-ready'
+  | 'preparing'
   | 'analyzing'
   | 'complete'
   | 'error';
 
 export interface AnalysisState {
   status: AnalysisStatus;
-  result: AnalysisResult | null;
+  analysis: ProfileAnalysis | null;
   error: string | null;
-  /** Current step description during analysis (for the loading UI) */
   currentStage?: string;
 }
 
-/** The stages shown during the analysis loading experience */
 export const ANALYSIS_STAGES = [
-  'Analyzing profile clarity',
-  'Evaluating professional evidence',
-  'Comparing skills with target role',
-  'Identifying missing signals',
-  'Prioritizing improvements',
+  'Preparing profile data',
+  'Evaluating profile clarity & narrative',
+  'Analyzing technical evidence',
+  'Comparing skills with target role criteria',
+  'Identifying missing recruiter signals',
+  'Prioritizing high-impact improvements',
 ] as const;

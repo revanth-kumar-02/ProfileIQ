@@ -1,46 +1,79 @@
 import React, { useEffect, useState } from 'react';
+import { ANALYSIS_STAGES } from '../types/analysis';
+import { useAnalysisStore, analysisStore } from '../store/analysisStore';
+import { AnalysisService } from '../services/analysis.service';
 
 interface AnalyzingViewProps {
-  targetRole: string;
-  userName: string;
   onComplete: () => void;
 }
 
-const ANALYSIS_STEPS = [
-  'Profile information prepared',
-  'Analyzing profile clarity & tone',
-  'Evaluating technical evidence',
-  'Comparing skills with target role benchmarks',
-  'Identifying missing recruiter signals',
-  'Prioritizing high-impact improvements',
-];
-
-export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
-  targetRole,
-  userName,
-  onComplete,
-}) => {
+export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ onComplete }) => {
+  const { currentProfile, selectedTargetRole, analysisStatus, analysisError } = useAnalysisStore();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
+  const candidateName = currentProfile?.basicInfo.fullName || 'Candidate';
+  const roleTitle = selectedTargetRole?.title || 'Target Role';
+
   useEffect(() => {
-    const interval = setInterval(() => {
+    if (!currentProfile || !selectedTargetRole) return;
+
+    analysisStore.setAnalysisStatus('analyzing');
+
+    // Smooth stage progress indicator
+    const stageInterval = setInterval(() => {
       setCurrentStepIndex((prev) => {
-        if (prev < ANALYSIS_STEPS.length - 1) {
+        if (prev < ANALYSIS_STAGES.length - 1) {
           return prev + 1;
-        } else {
-          clearInterval(interval);
-          setTimeout(() => {
-            onComplete();
-          }, 600);
-          return prev;
         }
+        return prev;
       });
-    }, 600);
+    }, 500);
 
-    return () => clearInterval(interval);
-  }, [onComplete]);
+    // Trigger analysis service
+    AnalysisService.analyzeProfile({
+      profile: currentProfile,
+      targetRole: selectedTargetRole,
+    })
+      .then((result) => {
+        analysisStore.setCurrentAnalysis(result);
+        setTimeout(() => {
+          clearInterval(stageInterval);
+          onComplete();
+        }, 500);
+      })
+      .catch((err) => {
+        clearInterval(stageInterval);
+        const errorMsg = err instanceof Error ? err.message : 'Analysis failed. Please try again.';
+        analysisStore.setAnalysisStatus('error', errorMsg);
+      });
 
-  const progressPercent = Math.round(((currentStepIndex + 1) / ANALYSIS_STEPS.length) * 100);
+    return () => clearInterval(stageInterval);
+  }, [currentProfile, selectedTargetRole, onComplete]);
+
+  if (analysisStatus === 'error') {
+    return (
+      <div className="w-full max-w-md mx-auto px-4 py-16 text-center space-y-5">
+        <div className="w-14 h-14 mx-auto rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+          <span className="material-symbols-outlined text-[32px]">warning</span>
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-[#0F172A]">Analysis Failed</h2>
+          <p className="text-xs text-slate-500">{analysisError || 'We couldn’t complete your analysis.'}</p>
+        </div>
+        <button
+          onClick={() => {
+            analysisStore.setAnalysisStatus('idle');
+            window.location.reload();
+          }}
+          className="px-5 py-2.5 bg-[#004ac6] text-white text-xs font-bold rounded-xl shadow-2xs"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const progressPercent = Math.round(((currentStepIndex + 1) / ANALYSIS_STAGES.length) * 100);
 
   return (
     <div className="w-full max-w-xl mx-auto px-4 sm:px-6 py-16 space-y-8 animate-in fade-in duration-200 text-center">
@@ -57,10 +90,10 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
       {/* Headline */}
       <div className="space-y-2">
         <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F172A] tracking-tight">
-          Evaluating {userName}'s Profile
+          Evaluating {candidateName}'s Profile
         </h1>
         <p className="text-xs sm:text-sm text-slate-500">
-          Benchmarking evidence against recruiter signals for <strong className="text-[#004ac6]">{targetRole}</strong>.
+          Benchmarking evidence against recruiter signals for <strong className="text-[#004ac6]">{roleTitle}</strong>.
         </p>
       </div>
 
@@ -74,10 +107,9 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
 
       {/* Analysis Stages List */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs text-left space-y-3 max-w-md mx-auto">
-        {ANALYSIS_STEPS.map((stepText, idx) => {
+        {ANALYSIS_STAGES.map((stepText, idx) => {
           const isDone = idx < currentStepIndex;
           const isCurrent = idx === currentStepIndex;
-          const isPending = idx > currentStepIndex;
 
           return (
             <div

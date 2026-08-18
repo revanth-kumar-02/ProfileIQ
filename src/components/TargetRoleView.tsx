@@ -1,67 +1,62 @@
-import React, { useState } from 'react';
-import { TargetRole } from '../types';
+import React, { useEffect, useState } from 'react';
+import { TargetRole } from '../types/role';
+import { RoleService } from '../services/role.service';
+import { analysisStore, useAnalysisStore } from '../store/analysisStore';
 
 interface TargetRoleViewProps {
-  initialRole: string;
-  onSelectRole: (roleTitle: string) => void;
+  onContinue: () => void;
 }
 
-const PREDEFINED_ROLES: { id: string; title: string; category: string; description: string }[] = [
-  {
-    id: 'swe-intern',
-    title: 'Software Engineer Intern',
-    category: 'Early Career',
-    description: 'Entry-level engineering roles focusing on data structures, algorithms, and web/systems projects.',
-  },
-  {
-    id: 'frontend-dev',
-    title: 'Frontend Developer',
-    category: 'Web Development',
-    description: 'Focusing on modern UI frameworks (React, Vue, TypeScript), responsive design, and state management.',
-  },
-  {
-    id: 'backend-dev',
-    title: 'Backend Developer',
-    category: 'Systems & APIs',
-    description: 'Focusing on server-side logic, microservices, REST APIs, databases, and infrastructure.',
-  },
-  {
-    id: 'fullstack-dev',
-    title: 'Full Stack Developer',
-    category: 'Engineering',
-    description: 'Combining end-to-end client UI engineering with robust server-side architecture and databases.',
-  },
-  {
-    id: 'data-analyst',
-    title: 'Data Analyst',
-    category: 'Analytics',
-    description: 'Focusing on SQL, Python/R, data visualization, business metrics, and statistical reporting.',
-  },
-  {
-    id: 'ml-engineer',
-    title: 'Machine Learning Engineer',
-    category: 'AI & Data Science',
-    description: 'Focusing on ML frameworks (PyTorch, TensorFlow), model deployment, NLP, and data pipelines.',
-  },
-];
+export const TargetRoleView: React.FC<TargetRoleViewProps> = ({ onContinue }) => {
+  const { selectedTargetRole } = useAnalysisStore();
 
-export const TargetRoleView: React.FC<TargetRoleViewProps> = ({
-  initialRole,
-  onSelectRole,
-}) => {
-  const [selectedRoleTitle, setSelectedRoleTitle] = useState<string>(initialRole || 'Software Engineer Intern');
+  const [roles, setRoles] = useState<TargetRole[]>([]);
+  const [selectedRole, setSelectedRole] = useState<TargetRole | null>(selectedTargetRole);
   const [searchQuery, setSearchQuery] = useState('');
-  const [customRoleInput, setCustomRoleInput] = useState('');
+  const [customRoleTitle, setCustomRoleTitle] = useState('');
 
-  const filteredRoles = PREDEFINED_ROLES.filter(
+  useEffect(() => {
+    RoleService.getTargetRoles().then((fetchedRoles) => {
+      setRoles(fetchedRoles);
+      if (!selectedTargetRole && fetchedRoles.length > 0) {
+        setSelectedRole(fetchedRoles[0]);
+      }
+    });
+  }, [selectedTargetRole]);
+
+  const filteredRoles = roles.filter(
     (r) =>
       r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.category.toLowerCase().includes(searchQuery.toLowerCase())
+      (r.category && r.category.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleContinue = () => {
-    const finalRole = customRoleInput.trim() || selectedRoleTitle;
-    onSelectRole(finalRole);
+    let finalRole: TargetRole;
+
+    if (customRoleTitle.trim()) {
+      finalRole = {
+        id: `custom-${Date.now()}`,
+        title: customRoleTitle.trim(),
+        category: 'Custom Role',
+        description: `Custom career role benchmark for ${customRoleTitle.trim()}`,
+        expectedSkills: ['Core Architecture', 'Technical Leadership', 'Domain Competency'],
+        importantKeywords: [customRoleTitle.trim(), 'System Design', 'Domain Knowledge'],
+        evidenceSignals: ['Project Outcomes', 'Verified Skills'],
+      };
+    } else if (selectedRole) {
+      finalRole = selectedRole;
+    } else if (roles.length > 0) {
+      finalRole = roles[0];
+    } else {
+      finalRole = {
+        id: 'default-role',
+        title: 'Software Engineer',
+        category: 'Engineering',
+      };
+    }
+
+    analysisStore.setSelectedTargetRole(finalRole);
+    onContinue();
   };
 
   return (
@@ -100,14 +95,14 @@ export const TargetRoleView: React.FC<TargetRoleViewProps> = ({
         {/* Roles Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           {filteredRoles.map((role) => {
-            const isSelected = selectedRoleTitle === role.title && !customRoleInput.trim();
+            const isSelected = selectedRole?.id === role.id && !customRoleTitle.trim();
             return (
               <button
                 key={role.id}
                 type="button"
                 onClick={() => {
-                  setSelectedRoleTitle(role.title);
-                  setCustomRoleInput('');
+                  setSelectedRole(role);
+                  setCustomRoleTitle('');
                 }}
                 className={`p-4 rounded-xl border text-left transition-all space-y-1 ${
                   isSelected
@@ -117,13 +112,17 @@ export const TargetRoleView: React.FC<TargetRoleViewProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#0F172A]">{role.title}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                    {role.category}
-                  </span>
+                  {role.category && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                      {role.category}
+                    </span>
+                  )}
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  {role.description}
-                </p>
+                {role.description && (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    {role.description}
+                  </p>
+                )}
               </button>
             );
           })}
@@ -136,8 +135,8 @@ export const TargetRoleView: React.FC<TargetRoleViewProps> = ({
           </label>
           <input
             type="text"
-            value={customRoleInput}
-            onChange={(e) => setCustomRoleInput(e.target.value)}
+            value={customRoleTitle}
+            onChange={(e) => setCustomRoleTitle(e.target.value)}
             placeholder="e.g. Senior Cloud Architect, DevOps Specialist..."
             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#004ac6]"
           />
