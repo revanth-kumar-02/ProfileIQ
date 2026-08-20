@@ -65,7 +65,10 @@ export class ProfileProviderRegistry {
   async getActiveProvider(): Promise<ProfileExtractionProvider> {
     const configuredId = (process.env.PROFILE_EXTRACTION_PROVIDER || 'pdl').trim();
 
+    console.log(`[Provider Factory] Requested provider: ${configuredId}`);
     const primaryProvider = this.providers.get(configuredId);
+    console.log(`[Provider Factory] Provider instance created: ${Boolean(primaryProvider)}`);
+
     if (primaryProvider) {
       return primaryProvider;
     }
@@ -91,6 +94,10 @@ export class ProfileProviderRegistry {
    * Execute extraction across configured provider or provider chain
    */
   async executeExtraction(profileUrl: string): Promise<ExtractionResult> {
+    const configuredId = (process.env.PROFILE_EXTRACTION_PROVIDER || 'pdl').trim();
+    console.log(`\n[Profile Import] URL received: "${profileUrl}"`);
+    console.log(`[Profile Import] Configured provider: ${configuredId}`);
+
     const chainStr = process.env.PROFILE_PROVIDER_CHAIN;
 
     if (chainStr) {

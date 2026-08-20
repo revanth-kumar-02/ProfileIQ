@@ -44,12 +44,14 @@ export class ApiIngestionProvider implements ProfileIngestionProvider {
         const errorCode = resData.error?.code || 'PROFILE_DATA_NOT_AVAILABLE';
         let errorMessage = resData.error?.message;
 
-        if (errorCode === 'PROFILE_DATA_NOT_AVAILABLE') {
-          errorMessage = "We couldn't find profile data for this LinkedIn URL in the configured data source.";
+        if (errorCode === 'PROVIDER_NOT_CONFIGURED') {
+          errorMessage = resData.error?.message || 'Profile import is not configured yet. The profile data provider API key is missing.';
+        } else if (errorCode === 'PROVIDER_AUTH_ERROR') {
+          errorMessage = resData.error?.message || 'People Data Labs API authentication failed. Check server API key configuration.';
+        } else if (errorCode === 'PROFILE_DATA_NOT_AVAILABLE') {
+          errorMessage = resData.error?.message || "We couldn't find profile data for this LinkedIn URL in the configured data source.";
         } else if (errorCode === 'PROVIDER_RATE_LIMITED') {
-          errorMessage = "Profile import is temporarily unavailable due to provider limits. Please try again later.";
-        } else if (errorCode === 'PROVIDER_UNAVAILABLE' || errorCode === 'PROVIDER_AUTH_ERROR') {
-          errorMessage = "Profile import is temporarily unavailable. Please try again later.";
+          errorMessage = 'Profile import is temporarily unavailable due to provider limits. Please try again later.';
         } else if (errorCode === 'NETWORK_ERROR') {
           errorMessage = "We couldn't connect to the profile data service. Check your connection and try again.";
         }

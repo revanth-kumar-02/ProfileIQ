@@ -153,10 +153,23 @@ export const ImportView: React.FC<ImportViewProps> = ({ onSuccess }) => {
                 {showDiagnostics && (
                   <div className="mt-2 p-3 bg-white/80 rounded-lg border border-rose-200 font-mono text-[11px] space-y-1 text-slate-700">
                     <div><strong>Provider:</strong> {importDiagnostics.provider}</div>
-                    <div><strong>HTTP Status:</strong> {importDiagnostics.httpStatus ?? 'N/A'}</div>
-                    <div><strong>Page Classification:</strong> <span className="font-bold text-rose-700">{importDiagnostics.pageType}</span></div>
-                    <div><strong>Response Length:</strong> {importDiagnostics.responseLength ?? 0} bytes</div>
-                    <div><strong>Signals Detected:</strong> Name ({String(importDiagnostics.profileSignalsDetected?.name)}), Headline ({String(importDiagnostics.profileSignalsDetected?.headline)}), Skills ({importDiagnostics.profileSignalsDetected?.skillsCount || 0}), Experience ({importDiagnostics.profileSignalsDetected?.experienceCount || 0})</div>
+                    {importDiagnostics.provider === 'pdl' || importDiagnostics.apiKeyConfigured !== undefined ? (
+                      <>
+                        <div><strong>API Key Configured:</strong> {String(importDiagnostics.apiKeyConfigured ?? false)}</div>
+                        <div><strong>Failure Stage:</strong> <span className="font-bold text-rose-700">{importDiagnostics.failureStage ?? 'N/A'}</span></div>
+                        <div><strong>HTTP Status:</strong> {importDiagnostics.httpStatus ?? 'N/A'}</div>
+                        <div><strong>Request Completed:</strong> {String(importDiagnostics.requestCompleted ?? false)}</div>
+                        <div><strong>Profile Record Found:</strong> {String(importDiagnostics.profileRecordFound ?? false)}</div>
+                        <div><strong>Response Mapping Successful:</strong> {String(importDiagnostics.responseMappingSuccessful ?? false)}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div><strong>HTTP Status:</strong> {importDiagnostics.httpStatus ?? 'N/A'}</div>
+                        <div><strong>Page Classification:</strong> <span className="font-bold text-rose-700">{importDiagnostics.pageType ?? 'N/A'}</span></div>
+                        <div><strong>Response Length:</strong> {importDiagnostics.responseLength ?? 0} bytes</div>
+                        <div><strong>Signals Detected:</strong> Name ({String(importDiagnostics.profileSignalsDetected?.name)}), Headline ({String(importDiagnostics.profileSignalsDetected?.headline)}), Skills ({importDiagnostics.profileSignalsDetected?.skillsCount || 0}), Experience ({importDiagnostics.profileSignalsDetected?.experienceCount || 0})</div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

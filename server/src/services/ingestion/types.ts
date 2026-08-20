@@ -11,7 +11,18 @@ export type PageTypeClassification =
   | 'empty'
   | 'unknown';
 
+export type FailureStage =
+  | 'validation'
+  | 'configuration'
+  | 'provider_initialization'
+  | 'request_construction'
+  | 'network_request'
+  | 'provider_response'
+  | 'response_mapping';
+
 export type ExtractionErrorCode =
+  | 'PROVIDER_NOT_CONFIGURED'
+  | 'PROVIDER_TIMEOUT'
   | 'PROFILE_NOT_PUBLIC'
   | 'PROFILE_LOGIN_REQUIRED'
   | 'PROFILE_ACCESS_BLOCKED'
@@ -56,16 +67,23 @@ export interface RawExtractedProfile {
 
 export interface ExtractionDiagnostics {
   provider: string;
+  apiKeyConfigured?: boolean;
+  failureStage?: FailureStage;
+  httpStatus?: number | null;
+  errorType?: string;
+  requestCompleted?: boolean;
+  profileRecordFound?: boolean;
+  responseMappingSuccessful?: boolean;
+  // HTML scraping legacy fields
   providerAvailable?: boolean;
   configuredProvider?: string;
   fallbackAttempted?: boolean;
-  httpStatus?: number;
-  pageType: PageTypeClassification;
+  pageType?: PageTypeClassification;
   redirectedUrl?: string;
   responseContentType?: string;
   responseLength?: number;
   recordsFound?: boolean;
-  profileSignalsDetected: {
+  profileSignalsDetected?: {
     name: boolean;
     headline: boolean;
     about: boolean;
@@ -94,10 +112,12 @@ export interface ProfileExtractionProvider {
 }
 
 export interface ProviderStatusData {
+  provider: string;
+  configured: boolean;
   available: boolean;
-  providerConfigured: boolean;
-  activeProvider: string;
-  registeredProviders: {
+  apiKeyConfigured: boolean;
+  reason?: string;
+  registeredProviders?: {
     id: string;
     name: string;
     available: boolean;

@@ -61,8 +61,10 @@ export async function handleProfileImport(req: Request, res: Response): Promise<
         statusCode = 429;
       } else if (errorCode === 'NETWORK_ERROR') {
         statusCode = 502;
-      } else if (errorCode === 'PROVIDER_UNAVAILABLE') {
+      } else if (errorCode === 'PROVIDER_UNAVAILABLE' || errorCode === 'PROVIDER_NOT_CONFIGURED') {
         statusCode = 503;
+      } else if (errorCode === 'PROVIDER_TIMEOUT') {
+        statusCode = 504;
       }
 
       res.status(statusCode).json(responsePayload);

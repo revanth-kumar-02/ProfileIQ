@@ -13,10 +13,26 @@ export type ImportStatus =
   | 'success'
   | 'error';
 
+export type FailureStage =
+  | 'validation'
+  | 'configuration'
+  | 'provider_initialization'
+  | 'request_construction'
+  | 'network_request'
+  | 'provider_response'
+  | 'response_mapping';
+
 export interface IngestionDiagnostics {
   provider: string;
-  httpStatus?: number;
-  pageType: string;
+  apiKeyConfigured?: boolean;
+  failureStage?: FailureStage;
+  httpStatus?: number | null;
+  errorType?: string;
+  requestCompleted?: boolean;
+  profileRecordFound?: boolean;
+  responseMappingSuccessful?: boolean;
+  // Legacy / HTML scraper fallback fields
+  pageType?: string;
   redirectedUrl?: string;
   responseContentType?: string;
   responseLength?: number;

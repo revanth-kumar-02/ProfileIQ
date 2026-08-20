@@ -2,6 +2,7 @@ import { profileProviderRegistry } from './profileProviderRegistry.js';
 import { normalizeRawExtractedProfile } from '../profile/profileNormalizer.service.js';
 import { Profile } from '../../types/profile.types.js';
 import { ExtractionDiagnostics, ProviderStatusData } from './types.js';
+import { ENV } from '../../config/env.js';
 
 export interface ProfileImportResponse {
   success: boolean;
@@ -51,19 +52,31 @@ export class ProfileIngestionService {
   }
 
   /**
-   * Return safe capability & status info for registered extraction providers
+   * Return safe capability & status info for active provider (Health Check)
    */
   async getProviderStatus(): Promise<ProviderStatusData> {
     const activeProvider = await profileProviderRegistry.getActiveProvider();
-    const registeredProviders = await profileProviderRegistry.getProvidersStatus();
     const isAvailable = await activeProvider.isAvailable();
-    const configuredProvider = process.env.PROFILE_EXTRACTION_PROVIDER || 'direct-linkedin';
+    const configuredProvider = (ENV.PROFILE_EXTRACTION_PROVIDER || process.env.PROFILE_EXTRACTION_PROVIDER || 'pdl').trim();
+
+    const apiKey = (ENV.PDL_API_KEY || process.env.PDL_API_KEY || '').trim();
+    const apiKeyConfigured = Boolean(apiKey);
+
+    if (activeProvider.id === 'pdl' && !apiKeyConfigured) {
+      return {
+        provider: 'pdl',
+        configured: false,
+        available: false,
+        apiKeyConfigured: false,
+        reason: 'PDL_API_KEY_MISSING',
+      };
+    }
 
     return {
+      provider: activeProvider.id,
+      configured: Boolean(configuredProvider),
       available: isAvailable,
-      providerConfigured: Boolean(configuredProvider),
-      activeProvider: activeProvider.id,
-      registeredProviders,
+      apiKeyConfigured: activeProvider.id === 'pdl' ? apiKeyConfigured : true,
     };
   }
 }
