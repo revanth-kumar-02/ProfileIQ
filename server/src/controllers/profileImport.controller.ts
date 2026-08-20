@@ -49,11 +49,15 @@ export async function handleProfileImport(req: Request, res: Response): Promise<
       let statusCode = 422;
       const errorCode = result.error?.code;
 
-      if (errorCode === 'INVALID_PROFILE_URL') {
+      if (errorCode === 'INVALID_PROFILE_URL' || errorCode === 'PROVIDER_BAD_REQUEST') {
         statusCode = 400;
+      } else if (errorCode === 'PROVIDER_AUTH_ERROR') {
+        statusCode = 401;
       } else if (errorCode === 'PROFILE_LOGIN_REQUIRED' || errorCode === 'PROFILE_NOT_PUBLIC') {
         statusCode = 403;
-      } else if (errorCode === 'PROFILE_ACCESS_BLOCKED') {
+      } else if (errorCode === 'PROFILE_DATA_NOT_AVAILABLE') {
+        statusCode = 404;
+      } else if (errorCode === 'PROFILE_ACCESS_BLOCKED' || errorCode === 'PROVIDER_RATE_LIMITED') {
         statusCode = 429;
       } else if (errorCode === 'NETWORK_ERROR') {
         statusCode = 502;

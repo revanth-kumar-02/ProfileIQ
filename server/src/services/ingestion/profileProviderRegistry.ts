@@ -1,6 +1,7 @@
 import { ProfileExtractionProvider, ExtractionResult, ExtractionDiagnostics } from './types.js';
 import { DirectLinkedInProvider } from './directLinkedInProvider.service.js';
 import { ExternalProfileProvider } from './externalProfileProvider.service.js';
+import { PDLProfileProvider } from './pdlProfileProvider.service.js';
 
 /**
  * ProfileProviderRegistry
@@ -9,8 +10,8 @@ import { ExternalProfileProvider } from './externalProfileProvider.service.js';
  * Decouples controller & ingestion services from specific provider implementations.
  *
  * Configuration:
- * - PROFILE_EXTRACTION_PROVIDER: Primary provider ID ('direct-linkedin' or 'external-provider').
- * - PROFILE_PROVIDER_CHAIN: Optional comma-separated fallback chain (e.g., 'external-provider,direct-linkedin').
+ * - PROFILE_EXTRACTION_PROVIDER: Primary provider ID ('pdl', 'direct-linkedin', or 'external-provider').
+ * - PROFILE_PROVIDER_CHAIN: Optional comma-separated fallback chain (e.g., 'pdl,direct-linkedin').
  */
 export class ProfileProviderRegistry {
   private providers: Map<string, ProfileExtractionProvider> = new Map();
@@ -19,6 +20,7 @@ export class ProfileProviderRegistry {
     // Register default built-in providers
     this.registerProvider(new DirectLinkedInProvider());
     this.registerProvider(new ExternalProfileProvider());
+    this.registerProvider(new PDLProfileProvider());
   }
 
   /**
@@ -61,14 +63,11 @@ export class ProfileProviderRegistry {
    * Resolve active extraction provider based on environment configuration
    */
   async getActiveProvider(): Promise<ProfileExtractionProvider> {
-    const configuredId = (process.env.PROFILE_EXTRACTION_PROVIDER || 'direct-linkedin').trim();
+    const configuredId = (process.env.PROFILE_EXTRACTION_PROVIDER || 'pdl').trim();
 
     const primaryProvider = this.providers.get(configuredId);
     if (primaryProvider) {
-      const isAvail = await primaryProvider.isAvailable();
-      if (isAvail) {
-        return primaryProvider;
-      }
+      return primaryProvider;
     }
 
     // Fallback search through chain if configured
@@ -77,20 +76,14 @@ export class ProfileProviderRegistry {
       const chain = chainStr.split(',').map((s) => s.trim());
       for (const providerId of chain) {
         const p = this.providers.get(providerId);
-        if (p && (await p.isAvailable())) {
+        if (p) {
           console.log(`[Provider Registry] Using fallback provider from chain: "${p.id}"`);
           return p;
         }
       }
     }
 
-    // Default fallback to direct-linkedin if registered
-    const directProvider = this.providers.get('direct-linkedin');
-    if (directProvider) {
-      return directProvider;
-    }
-
-    // Fallback no-op provider if none available
+    // Fallback no-op provider if configured provider is not found
     return new UnavailableFallbackProvider(configuredId);
   }
 

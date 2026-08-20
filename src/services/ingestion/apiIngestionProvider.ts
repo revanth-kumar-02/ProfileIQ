@@ -41,13 +41,24 @@ export class ApiIngestionProvider implements ProfileIngestionProvider {
       const resData = await response.json();
 
       if (!response.ok || !resData.success || !resData.data?.profile) {
+        const errorCode = resData.error?.code || 'PROFILE_DATA_NOT_AVAILABLE';
+        let errorMessage = resData.error?.message;
+
+        if (errorCode === 'PROFILE_DATA_NOT_AVAILABLE') {
+          errorMessage = "We couldn't find profile data for this LinkedIn URL in the configured data source.";
+        } else if (errorCode === 'PROVIDER_RATE_LIMITED') {
+          errorMessage = "Profile import is temporarily unavailable due to provider limits. Please try again later.";
+        } else if (errorCode === 'PROVIDER_UNAVAILABLE' || errorCode === 'PROVIDER_AUTH_ERROR') {
+          errorMessage = "Profile import is temporarily unavailable. Please try again later.";
+        } else if (errorCode === 'NETWORK_ERROR') {
+          errorMessage = "We couldn't connect to the profile data service. Check your connection and try again.";
+        }
+
         return {
           success: false,
           error: {
-            code: resData.error?.code || 'PROFILE_DATA_NOT_AVAILABLE',
-            message:
-              resData.error?.message ||
-              "We couldn't extract public profile information from this LinkedIn URL.",
+            code: errorCode,
+            message: errorMessage || "We couldn't extract public profile information from this LinkedIn URL.",
           },
           diagnostics: resData.diagnostics,
         };
